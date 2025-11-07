@@ -1,19 +1,32 @@
 import asyncio
+from fastapi import WebSocket
 from collections import deque
 from typing import Dict, Deque, Optional
-from fastapi import WebSocket
 from utilities import make_event, make_error 
 from utilities import SUBSCRIBER_QUEUE_SIZE, REPLAY_BUFFER_SIZE
 
 # ------------ In-memory structures ------------
 class Subscriber:
+    ''' Represents a subscriber client.'''
+    
     def __init__(self, client_id: str, websocket: WebSocket):
+        
+        # initialize fields
         self.client_id = client_id
         self.websocket = websocket
+        
+        # per subscriber message buffer
+        # publisher should never wait for a slow subscriber
+        # if subscriber is slow messages accumulate up to SUBSCRIBER_QUEUE_SIZE
+        # if queue is full, oldest message is dropped and SLOW_CONSUMER error is enqueued
         self.queue: asyncio.Queue = asyncio.Queue(maxsize=SUBSCRIBER_QUEUE_SIZE)
+
+        # background async task that pops from queue and sends via WebSocket
+        # sends messages asynchronously and independently, enabling scalable fan-out
         self.sender_task: Optional[asyncio.Task] = None
         self.connected = True
 
+    # graceful cleanup
     async def stop(self):
         self.connected = False
         if self.sender_task:

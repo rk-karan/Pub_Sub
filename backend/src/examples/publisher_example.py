@@ -16,6 +16,7 @@ async def main():
             },
             "request_id": str(uuid.uuid4())
         }
+        print("Client Message: ", msg)
         await ws.send(json.dumps(msg))
         resp = await ws.recv()
         print("Server:", resp)
